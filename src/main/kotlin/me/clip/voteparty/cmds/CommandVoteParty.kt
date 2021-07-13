@@ -15,9 +15,9 @@ import co.aikar.commands.bukkit.contexts.OnlinePlayer
 import me.clip.voteparty.base.Addon
 import me.clip.voteparty.conf.sections.PartySettings
 import me.clip.voteparty.events.VoteReceivedEvent
+import me.clip.voteparty.exte.*
 import me.clip.voteparty.exte.ADMIN_PERM
 import me.clip.voteparty.exte.CLAIM_PERM
-import me.clip.voteparty.exte.helpMenu
 import me.clip.voteparty.exte.sendMessage
 import me.clip.voteparty.messages.Messages
 import me.clip.voteparty.plugin.VotePartyPlugin
@@ -201,6 +201,46 @@ internal class CommandVoteParty(override val plugin: VotePartyPlugin) : BaseComm
 		user.claimable--
 
 		sendMessage(currentCommandIssuer, Messages.CLAIM__SUCCESS, null, "{claim}", user.claimable)
+	}
+
+	@Subcommand("claimall")
+	@Description("Claim All")
+	@CommandPermission(CLAIM_PERM)
+	fun claimAll(player: Player)
+	{
+		val user = party.usersHandler[player]
+
+		if (user.claimable <= 0)
+		{
+			return sendMessage(currentCommandIssuer, Messages.CLAIM__NONE)
+		}
+		
+		while (user.claimable > 0) {
+
+			if (player.inventory.firstEmpty() == -1)
+			{
+				sendMessage(currentCommandIssuer, Messages.CLAIM__SUCCESS, null, "{claim}", user.claimable)
+				return sendMessage(currentCommandIssuer, Messages.CLAIM__FULL)
+			}
+
+			party.votesHandler.runAll(player)
+			user.claimable--
+		}
+		sendMessage(currentCommandIssuer, Messages.CLAIM__SUCCESS, null, "{claim}", user.claimable)
+	}
+
+	@Subcommand("recent")
+	@Description("Show recent voters")
+	@CommandPermission("voteparty.recent")
+	fun recent(issuer: CommandIssuer) {
+		val recentVoters = party.usersHandler.getRecentVoters()
+
+		if (recentVoters == null) {
+			sendMessage(issuer, Messages.INFO__RECENT_VOTERS_NULL)
+			return
+		}
+
+		party.audiences().sender(issuer.getIssuer()).sendMessage(Identity.nil(), recentMenu(issuer, recentVoters))
 	}
 
 	@Subcommand("help")

@@ -17,24 +17,22 @@ internal class VotesListener(override val plugin: VotePartyPlugin) : VotePartyLi
 {
 
 	@EventHandler
-	fun VoteReceivedEvent.onReceive()
-	{
-		if (!player.isOnline && !party.conf().getProperty(PartySettings.OFFLINE_VOTES))
-		{
+	fun VoteReceivedEvent.onReceive() {
+		if (!player.isOnline && !party.conf().getProperty(PartySettings.OFFLINE_VOTES)) {
 			return
 		}
 
 		var first = false
 
 		val user = party.usersHandler[player]
-		if (!user.hasVotedBefore())
-		{
+		if (!user.hasVotedBefore()) {
 			first = true
 		}
 		user.voted()
 
-		if (!player.isOnline && party.conf().getProperty(VoteSettings.OFFLINE_VOTE_CLAIMING))
-		{
+		party.usersHandler.getRecentVoters()?.voted(user, System.currentTimeMillis())
+
+		if (!player.isOnline && party.conf().getProperty(VoteSettings.OFFLINE_VOTE_CLAIMING)) {
 			user.claimable++
 		}
 
@@ -45,11 +43,16 @@ internal class VotesListener(override val plugin: VotePartyPlugin) : VotePartyLi
 			party.usersHandler.save(user)
 		}
 
-		val online = player.player ?: return
+		val online = player.player
 
+		if (online == null && party.conf().getProperty(VoteSettings.OFFLINE_VOTE_GLOBAL_COMMANDS)) {
+			party.votesHandler.runGlobalCommandsOffline(player)
+			return
+		}
 
-		if (online.inventory.firstEmpty() == -1 && party.conf().getProperty(VoteSettings.CLAIMABLE_IF_FULL))
-		{
+		if (online == null) return
+
+		if (online.inventory.firstEmpty() == -1 && party.conf().getProperty(VoteSettings.CLAIMABLE_IF_FULL)) {
 			user.claimable++
 			return sendMessage(party.manager().getCommandIssuer(online), Messages.VOTES__INVENTORY_FULL)
 		}
@@ -57,13 +60,11 @@ internal class VotesListener(override val plugin: VotePartyPlugin) : VotePartyLi
 		party.votesHandler.runGlobalCommands(online)
 		party.votesHandler.runAll(online)
 
-		if (vote != "")
-		{
+		if (vote != "") {
 			party.votesHandler.giveVotesiteVoteRewards(online, vote)
 		}
 
-		if (first)
-		{
+		if (first) {
 			party.votesHandler.giveFirstTimeVoteRewards(online)
 		}
 
